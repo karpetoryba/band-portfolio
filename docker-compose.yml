@@ -1,0 +1,90 @@
+services:
+  database:
+    image: postgres:13
+    container_name: band_portfolio_db
+    restart: always
+    environment:
+      POSTGRES_USER: band_portfolio
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: band_portfolio_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+
+  backend:
+    build: .
+    container_name: band_portfolio_backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000                   
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=band_portfolio
+      - DB_PASSWORD=password123
+      - DB_NAME=band_portfolio_db
+    depends_on:
+      - database
+    volumes:
+      - .:/app
+    networks:
+      - backend
+      - frontend
+
+  swagger:
+    build: .
+    container_name: band_portfolio_swagger
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - SWAGGER_PORT=3001
+    command: sh -c "npm install && npx ts-node swagger-config.ts && sleep 2 && npx ts-node swagger-server.ts"
+    volumes:
+      - .:/app
+    working_dir: /app
+    networks:
+      - frontend
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    container_name: band_portfolio_nginx
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend
+    networks:
+      - frontend
+      - backend
+
+  adminer:                          
+    image: adminer:4
+    container_name: band_portfolio_adminer
+    restart: always
+    ports:
+      - '8081:8080'
+    environment:
+      ADMINER_DEFAULT_SERVER: database
+      ADMINER_DESIGN: pepa-linha
+    networks:                     
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
